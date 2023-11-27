@@ -17,7 +17,7 @@ using var client = new HttpClient(handler) {
 
 Console.WriteLine("--- localhost:5001 ---");
 
-HttpResponseMessage resp = await client.GetAsync("https://localhost:5001/");
+HttpResponseMessage resp = await client.GetAsync("https://localhost:5001/studies/1.2.3/rendered");
 string body = await resp.Content.ReadAsStringAsync();
 
 Console.WriteLine(

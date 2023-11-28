@@ -12,7 +12,8 @@ handler.ServerCertificateCustomValidationCallback =
 
 using var client = new HttpClient(handler) {
     DefaultRequestVersion = HttpVersion.Version30,
-    DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact
+    DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact,
+    Timeout = TimeSpan.FromMinutes(10)
 };
 
 
@@ -34,31 +35,14 @@ foreach (var filename in fileNames)
     string instance = filename;
     string getPath = $"https://localhost:5001/studies/1.2.3/series/{series}/instances/{instance}";
 
-    receiverTasks.Add(Task.Factory.StartNew(() => {
-        var handler = new HttpClientHandler();
-        handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-        handler.ServerCertificateCustomValidationCallback = 
-        (httpRequestMessage, cert, cetChain, policyErrors) =>
-        {
-            return true;
-        };
-
-        using var client = new HttpClient(handler) {
-            DefaultRequestVersion = HttpVersion.Version30,
-            DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact,
-            Timeout = TimeSpan.FromMinutes(10)
-        };
-
-        try {
-            var resp = client.GetAsync(getPath).ConfigureAwait(false).GetAwaiter().GetResult();
-            Interlocked.Increment(ref receiveFile);
-            Interlocked.Add(ref recieived, resp.Content.ReadAsStream().Length);
-        } catch(Exception ex) {
-            Console.WriteLine($"chunk failed {instance} reasob: {ex.Message}");
-        }
-    }));
+    try {
+        var dicomData = await client.GetAsync(getPath);
+        ++receiveFile;
+        recieived += dicomData.Content.ReadAsStream().Length;
+    } catch(Exception ex) {
+         Console.WriteLine($"chunk failed {instance} reasob: {ex.Message}");
+    }
 }
 
-await Task.WhenAll(receiverTasks);
 sw.Stop();
 Console.WriteLine($"Received file count:{receiveFile} Received bytes: {recieived} KB in {sw.ElapsedMilliseconds} ms");
